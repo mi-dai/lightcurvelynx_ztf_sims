@@ -64,6 +64,47 @@ def plot_logflux_vs_logfluxerr(sim, data, labels=['sim','data'],**kwargs):
     plt.ylabel('log10fluxerr')
     plt.show()    
 
+def plot_flux_vs_fluxerr(sim, data, labels=['sim','data'],**kwargs):
+
+    lc_to_plot = sim
+
+    lcdata_plot = data
+
+    lcdata_flux_njy,lcdata_fluxerr_njy = convert_flux_to_njy(lcdata_plot['lc.flux'],lcdata_plot['lc.flux_err'],zp=30.)
+
+    bins_flux = np.linspace(0,2e5,30)
+    bins_fluxerr = np.linspace(0,1e4,30)
+
+    plt.hist(lc_to_plot['lc.flux'],bins=bins_flux,alpha=0.3,density=True)
+    plt.hist(lcdata_flux_njy,bins=bins_flux,alpha=0.3,density=True)
+    plt.xlabel("flux_nJy")
+    plt.show()
+
+    plt.hist(lc_to_plot['lc.fluxerr'],bins=bins_fluxerr,alpha=0.3,density=True)
+    plt.hist(lcdata_fluxerr_njy,bins=bins_fluxerr,alpha=0.3,density=True)
+    plt.xlabel("fluxerr_nJy")
+    plt.show()
+
+    lcsim_count,lcsim_x_edges,lcsim_y_edges, _ = stats.binned_statistic_2d(lc_to_plot['lc.flux'],lc_to_plot['lc.fluxerr'],
+                                                 np.ones(len(lc_to_plot['lc.flux'])),
+                                                 statistic='sum',bins=[bins_flux,bins_fluxerr])
+    lcdata_count,lcdata_x_edges,lcdata_y_edges,_ = stats.binned_statistic_2d(lcdata_flux_njy,lcdata_fluxerr_njy,
+                                             np.ones(len(lcdata_flux_njy)),
+                                             statistic='sum',bins=[bins_flux,bins_fluxerr])
+    lcsim_x = 0.5* (lcsim_x_edges[:-1]+lcsim_x_edges[1:])
+    lcsim_y = 0.5* (lcsim_y_edges[:-1]+lcsim_y_edges[1:])
+    lcdata_x = 0.5* (lcdata_x_edges[:-1]+lcdata_x_edges[1:])
+    lcdata_y = 0.5* (lcdata_y_edges[:-1]+lcdata_y_edges[1:])
+    lcsim_x_plot,lcsim_y_plot = np.meshgrid(lcsim_x, lcsim_y)
+    lcdata_x_plot,lcdata_y_plot = np.meshgrid(lcdata_x, lcdata_y)
+    CS = plt.contour(lcsim_x_plot.T,lcsim_y_plot.T,lcsim_count,alpha=0.5,label='sim',levels=10,colors='C0')
+    CS = plt.contour(lcdata_x_plot.T,lcdata_y_plot.T,lcdata_count,alpha=0.5,label='data',levels=10,colors='C1')
+    proxies = [Line2D([],[],color=c) for c in ['C0','C1']]
+    plt.legend(proxies,['sim', 'data'])
+    plt.xlabel('flux_nJy')
+    plt.ylabel('fluxerr_nJy')
+    plt.show()    
+
 
 
 def get_maxflux_and_err(flux,fluxerr):
@@ -147,5 +188,6 @@ def plot_mag_vs_magerr(sim, data, labels=['sim','data'],**kwargs):
 
     plt.plot(lc_to_plot_mag,lc_to_plot_magerr,'o',alpha=0.01,label='sim')
     plt.plot(lcdata_mag,lcdata_magerr,'o',alpha=0.01,label='data')
+    plt.axhline(y=0.01)
     plt.legend()
     plt.show()
