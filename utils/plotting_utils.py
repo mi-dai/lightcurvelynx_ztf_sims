@@ -196,7 +196,7 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(
     labels=("sim","data"),
     zp=30.0,
     bins_flux=np.linspace(4.2, 6.4, 20),
-    bins_fluxerr=np.linspace(3.0, 4.5, 20),
+    bins_fluxerr=np.linspace(3.0, 4.8, 20),
     smooth_sigma=0.6,       # set 0.0 to disable smoothing
     n_levels=7,             # number of raw contour levels before trimming
     figsize=(7,7),
