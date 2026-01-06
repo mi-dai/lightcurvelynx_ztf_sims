@@ -75,8 +75,8 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.6) 
     proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
     ax_main.legend(proxies, labels, loc='upper left')
-    ax_main.set_xlabel('log₁₀(flux [nJy])')
-    ax_main.set_ylabel('log₁₀(flux_err [nJy])')
+    ax_main.set_xlabel(r"$\mathrm{log}_{10}\mathrm{(Flux [nJy])}$")
+    ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Flux Error [nJy])}$")
 
     # ---- Top histogram ----
     ax_top.hist(xs, bins=xb, color='C0', alpha=0.4, density=True)
@@ -282,8 +282,8 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(
 
     proxies = [Line2D([], [], color='C0'), Line2D([], [], color='C1')]
     ax_main.legend(proxies, labels, loc='upper left', frameon=False)
-    ax_main.set_xlabel('log$_{10}$ (max flux [nJy])')
-    ax_main.set_ylabel('log$_{10}$ (max flux err [nJy])')
+    ax_main.set_xlabel(r"$\mathrm{log}_{10}\mathrm{(Max Flux [nJy])}$")
+    ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Max Flux Error [nJy])}$")
 
     # ---- top histogram: log10 max flux ----
     ax_top.hist(xs, bins=bins_flux, alpha=0.4, density=True, label=labels[0])
