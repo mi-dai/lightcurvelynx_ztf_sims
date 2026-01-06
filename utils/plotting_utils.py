@@ -5,12 +5,12 @@ from scipy import stats
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 
-def plot_snr_distr(data_list, labels=None, **kwargs):
+def plot_snr_distr(data_list, labels=None, colors=["b","r"],**kwargs):
     ax = plt.subplot(1,1,1)
     if labels is None:
         labels = [f'data{i}' for i in range(0,len(data_list))]
     for i, data in enumerate(data_list):
-        ax.hist(data['lc.snr'], label=labels[i],**kwargs)
+        ax.hist(data['lc.snr'], label=labels[i], color=colors[i],**kwargs)
     ax.legend()
 
 def convert_flux_to_njy(flux,fluxerr,zp=0.):
