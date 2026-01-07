@@ -5,6 +5,7 @@ import sncosmo
 from astropy.table import Table
 from sfdmap2 import sfdmap
 from sncosmo.fitting import flatten_result
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,14 @@ def fit_single_lc(
     if mpbounds is None:
         mpbounds = {}
 
-    dustmap = sfdmap.SFDMap("/Users/mi/sfddata-master")
+    if "SFD_DIR" in os.environ:
+        dustmap = sfdmap.SFDMap()
+    else:
+        raise RuntimeError(
+            "Environment variable SFD_DIR must point to the SFD data directory. "
+            "See installation instructions at: https://github.com/kbarbary/sfdmap"
+        )
+        
     model = sncosmo.Model(
         source=modelsource, effects=[sncosmo.F99Dust()], effect_names=["mw"], effect_frames=["obs"]
     )
