@@ -5,7 +5,7 @@ from scipy import stats
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 
-def plot_snr_distr(data_list, labels=None, colors=["b","r"],**kwargs):
+def plot_snr_distr(data_list, labels=None, colors=["C0","C1"],**kwargs):
     ax = plt.subplot(1,1,1)
     if labels is None:
         labels = [f'data{i}' for i in range(0,len(data_list))]
@@ -71,23 +71,25 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     levels_s = np.linspace(np.nanmin(Hs[Hs>0]), np.nanmax(Hs), 7)[1:-1]  # skip outermost
     levels_d = np.linspace(np.nanmin(Hd[Hd>0]), np.nanmax(Hd), 7)[1:-1]
 
-    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels_s, alpha=0.6)
-    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.6) 
+    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels_s, alpha=0.5, lw=2)
+    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.5, lw=2) 
     proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
     ax_main.legend(proxies, labels, loc='upper left')
     ax_main.set_xlabel(r"$\mathrm{log}_{10}\mathrm{(Flux [nJy])}$")
     ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Flux Error [nJy])}$")
 
     # ---- Top histogram ----
-    ax_top.hist(xs, bins=xb, color='C0', alpha=0.4, density=True)
-    ax_top.hist(xd, bins=xb, color='C1', alpha=0.4, density=True)
+    ax_top.hist(xs, bins=xb, color='C0', alpha=0.5, density=True,histtype='step',lw=2)
+    ax_top.hist(xd, bins=xb, color='C1', alpha=0.5, density=True,histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
     ax_top.set_xticks([])
     ax_top.set_yticks([])
 
     # ---- Right histogram ----
-    ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.4, density=True)
-    ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.4, density=True)
+    ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.5, 
+                  density=True,histtype='step',lw=2)
+    ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.5,
+                  density=True,histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
     ax_right.set_xticks([])
     ax_right.set_yticks([])
@@ -276,9 +278,9 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(
 
     # ---- main 2D contours ----
     if levels_s is not None:
-        cs1 = ax_main.contour(XX, YY, Hs.T, colors='C0', levels=levels_s, alpha=0.7)
+        cs1 = ax_main.contour(XX, YY, Hs.T, colors='C0', levels=levels_s, alpha=0.5,lw=2)
     if levels_d is not None:
-        cs2 = ax_main.contour(XX, YY, Hd.T, colors='C1', levels=levels_d, alpha=0.7)
+        cs2 = ax_main.contour(XX, YY, Hd.T, colors='C1', levels=levels_d, alpha=0.5,lw=2)
 
     proxies = [Line2D([], [], color='C0'), Line2D([], [], color='C1')]
     ax_main.legend(proxies, labels, loc='upper left', frameon=False)
@@ -286,15 +288,19 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(
     ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Max Flux Error [nJy])}$")
 
     # ---- top histogram: log10 max flux ----
-    ax_top.hist(xs, bins=bins_flux, alpha=0.4, density=True, label=labels[0])
-    ax_top.hist(xd, bins=bins_flux, alpha=0.4, density=True, label=labels[1])
+    ax_top.hist(xs, bins=bins_flux, alpha=0.5, density=True, label=labels[0],
+        histtype='step',lw=2)
+    ax_top.hist(xd, bins=bins_flux, alpha=0.5, density=True, label=labels[1],
+        histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
     ax_top.set_xticks([])
     ax_top.set_yticks([])
 
     # ---- right histogram: log10 max flux err ----
-    ax_right.hist(ys, bins=bins_fluxerr, orientation='horizontal', alpha=0.4, density=True, label=labels[0])
-    ax_right.hist(yd, bins=bins_fluxerr, orientation='horizontal', alpha=0.4, density=True, label=labels[1])
+    ax_right.hist(ys, bins=bins_fluxerr, orientation='horizontal', alpha=0.5,
+                  density=True, label=labels[0],histtype='step',lw=2)
+    ax_right.hist(yd, bins=bins_fluxerr, orientation='horizontal', alpha=0.5,
+                  density=True, label=labels[1],histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
     ax_right.set_xticks([])
     ax_right.set_yticks([])
