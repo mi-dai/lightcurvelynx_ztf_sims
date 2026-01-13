@@ -10,5 +10,5 @@ SIM_PARAMS = {"H0": 70.,
               "x1max": 5.,
               "cmin": -0.4,
               "cmax": 1.,
-              "zp_mag_err": 0.002,
+              "zp_mag_err": 0.0,
               }
