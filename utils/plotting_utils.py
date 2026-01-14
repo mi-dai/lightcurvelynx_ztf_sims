@@ -21,37 +21,32 @@ def convert_flux_to_njy(flux,fluxerr,zp=0.):
     return flux_njy,fluxerr_njy
 
 def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., smooth_sigma=0.6):
-    def _safe_log10(x):
-        x = np.asarray(x, float)
-        m = x > 0
-        out = np.full_like(x, np.nan, dtype=float)
-        out[m] = np.log10(x[m])
-        return out
 
     # ---- Convert flux to nJy for data ----
     lcdata_flux_njy, lcdata_fluxerr_njy = convert_flux_to_njy(
         data['lc.flux'], data['lc.flux_err'], zp=zp
     )
 
-    # ---- Take logs ----
-    lcsim_logflux     = _safe_log10(sim['lc.flux'])
-    lcsim_logfluxerr  = _safe_log10(sim['lc.fluxerr'])
-    lcdata_logflux    = _safe_log10(lcdata_flux_njy)
-    lcdata_logfluxerr = _safe_log10(lcdata_fluxerr_njy)
+    lcsim_flux     = sim['lc.flux']
+    lcsim_fluxerr  = sim['lc.fluxerr']
+    lcdata_flux    = lcdata_flux_njy
+    lcdata_fluxerr = lcdata_fluxerr_njy
 
     # ---- Clean finite values ----
-    m_sim  = np.isfinite(lcsim_logflux) & np.isfinite(lcsim_logfluxerr)
-    m_data = np.isfinite(lcdata_logflux) & np.isfinite(lcdata_logfluxerr)
-    xs, ys = lcsim_logflux[m_sim], lcsim_logfluxerr[m_sim]
-    xd, yd = lcdata_logflux[m_data], lcdata_logfluxerr[m_data]
+    m_sim  = np.isfinite(lcsim_flux) & np.isfinite(lcsim_fluxerr)
+    m_data = np.isfinite(lcdata_flux) & np.isfinite(lcdata_fluxerr)
+    xs, ys = lcsim_flux[m_sim], lcsim_fluxerr[m_sim]
+    xd, yd = lcdata_flux[m_data], lcdata_fluxerr[m_data]
 
     # ---- Define bins ----
-    xb = np.linspace(3.6, 6, 20)
-    yb = np.linspace(3.0, 4.25, 20)
+    xb = np.logspace(3.5, 6.1, 20)
+    yb = np.logspace(2.8, 4.4, 20)
 
     # ---- Compute 2D histograms ----
     Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb])
     Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb])
+    print("Nsim:",np.sum(Hs))
+    print("Ndata",np.sum(Hd))
     if smooth_sigma:
         Hs = gaussian_filter(Hs, smooth_sigma)
         Hd = gaussian_filter(Hd, smooth_sigma)
@@ -59,7 +54,7 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     X, Y = np.meshgrid(0.5*(xe[:-1]+xe[1:]), 0.5*(ye[:-1]+ye[1:]))
 
     # ---- Create figure layout ----
-    fig = plt.figure(figsize=(7,7))
+    fig = plt.figure(figsize=(6,6))
     gs  = fig.add_gridspec(2,2, width_ratios=(4,1), height_ratios=(1,4),
                            wspace=0.05, hspace=0.05)
 
@@ -75,24 +70,30 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.8, lw=2) 
     proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
     ax_main.legend(proxies, labels, loc='upper left')
-    ax_main.set_xlabel(r"$\mathrm{log}_{10}\mathrm{(Flux [nJy])}$")
-    ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Flux Error [nJy])}$")
+    ax_main.set_xlabel(r"$\mathrm{Flux [nJy]}$")
+    ax_main.set_ylabel(r"$\mathrm{Flux Error [nJy]}$")
+    ax_main.set_xscale('log')
+    ax_main.set_yscale('log')
 
     # ---- Top histogram ----
-    ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=True,histtype='step',lw=2)
-    ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=True,histtype='step',lw=2)
+    ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
+    ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
     ax_top.set_xticks([])
     ax_top.set_yticks([])
+    ax_top.set_xscale('log')
+    ax_top.set_yscale('log')
 
     # ---- Right histogram ----
     ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
-                  density=True,histtype='step',lw=2)
+                  density=False,histtype='step',lw=2)
     ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
-                  density=True,histtype='step',lw=2)
+                  density=False,histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
     ax_right.set_xticks([])
     ax_right.set_yticks([])
+    ax_right.set_xscale('log')
+    ax_right.set_yscale('log')
 
     # ---- Final layout ----
     for ax in [ax_top, ax_right]:
@@ -192,123 +193,87 @@ def get_maxflux_and_err(flux,fluxerr):
     return {"maxflux":maxflux,"maxfluxerr":maxfluxerr}
 
 
-def plot_logmaxflux_vs_logmaxfluxerr_corner(
-    sim,
-    data,
-    labels=("sim","data"),
-    zp=30.0,
-    bins_flux=np.linspace(4.2, 6.4, 20),
-    bins_fluxerr=np.linspace(3.0, 4.8, 20),
-    smooth_sigma=0.6,       # set 0.0 to disable smoothing
-    n_levels=7,             # number of raw contour levels before trimming
-    figsize=(7,7),
-):
-    """
-    Corner-plot layout:
-      - Center: 2D contours of log10(maxflux [nJy]) vs log10(maxfluxerr [nJy])
-      - Top:    1D hist of log10(maxflux)
-      - Right:  1D hist of log10(maxfluxerr)
+def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), zp=30., smooth_sigma=0.6):
 
-    Notes
-    -----
-    - `data` flux/err converted to nJy using `zp`; `sim` is assumed already in nJy.
-    - Outermost (largest) contour level is removed.
-    """
-
-    def _safe_log10(x):
-        x = np.asarray(x, float)
-        out = np.full_like(x, np.nan, dtype=float)
-        m = x > 0
-        out[m] = np.log10(x[m])
-        return out
-
-    # ---- reduce to max flux/err ----
-    # Expect .reduce(get_maxflux_and_err, "lc.flux", "lc.flux_err/fluxerr") -> {"maxflux", "maxfluxerr"}
     d_max = data.reduce(get_maxflux_and_err, "lc.flux", "lc.flux_err")
+    # ---- Convert flux to nJy for data ----
     d_maxflux_njy, d_maxfluxerr_njy = convert_flux_to_njy(
-        d_max["maxflux"], d_max["maxfluxerr"], zp=zp
-    )
+        d_max["maxflux"], d_max["maxfluxerr"], zp=zp)
+
     s_max = sim.reduce(get_maxflux_and_err, "lc.flux", "lc.fluxerr")
 
-    # ---- log10 transform (safe) ----
-    xd = _safe_log10(d_maxflux_njy)
-    yd = _safe_log10(d_maxfluxerr_njy)
-    xs = _safe_log10(s_max["maxflux"])
-    ys = _safe_log10(s_max["maxfluxerr"])
+    lcsim_flux =  s_max["maxflux"]
+    lcsim_fluxerr = s_max["maxfluxerr"]
+    lcdata_flux = d_maxflux_njy
+    lcdata_fluxerr = d_maxfluxerr_njy
 
-    m_data = np.isfinite(xd) & np.isfinite(yd)
-    m_sim  = np.isfinite(xs) & np.isfinite(ys)
-    xd, yd = xd[m_data], yd[m_data]
-    xs, ys = xs[m_sim], ys[m_sim]
+    # ---- Clean finite values ----
+    m_sim  = np.isfinite(lcsim_flux) & np.isfinite(lcsim_fluxerr)
+    m_data = np.isfinite(lcdata_flux) & np.isfinite(lcdata_fluxerr)
+    xs, ys = lcsim_flux[m_sim], lcsim_fluxerr[m_sim]
+    xd, yd = lcdata_flux[m_data], lcdata_fluxerr[m_data]
 
-    # ---- 2D histograms on shared bins ----
-    Hs, xe, ye = np.histogram2d(xs, ys, bins=[bins_flux, bins_fluxerr])  # keep bins consistent
-    Hd, _,  _  = np.histogram2d(xd, yd,         bins=[bins_flux, bins_fluxerr])
+    # ---- Define bins ----
+    xb = np.logspace(4.2, 6.4, 20)
+    yb = np.logspace(3.0, 4.8, 20)
 
-    if smooth_sigma and smooth_sigma > 0:
+    # ---- Compute 2D histograms ----
+    Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb])
+    Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb])
+    print("Nsim:",np.sum(Hs))
+    print("Ndata",np.sum(Hd))
+    if smooth_sigma:
         Hs = gaussian_filter(Hs, smooth_sigma)
         Hd = gaussian_filter(Hd, smooth_sigma)
 
-    # Centers for contour coordinates
-    X = 0.5*(xe[:-1] + xe[1:])
-    Y = 0.5*(ye[:-1] + ye[1:])
-    XX, YY = np.meshgrid(X, Y)
+    X, Y = np.meshgrid(0.5*(xe[:-1]+xe[1:]), 0.5*(ye[:-1]+ye[1:]))
 
-    # ---- set levels and drop the outermost (largest) ----
-    def _levels(H):
-        positive = H[H > 0]
-        if positive.size == 0:
-            return None
-        lv = np.linspace(np.nanmin(positive), np.nanmax(positive), n_levels)
-        lv = lv[1:-1]  # drop the largest (outermost) level
-        # make sure levels are strictly increasing and finite
-        lv = lv[np.isfinite(lv)]
-        lv = np.unique(lv)
-        return lv if lv.size >= 2 else None
+    # ---- Create figure layout ----
+    fig = plt.figure(figsize=(6,6))
+    gs  = fig.add_gridspec(2,2, width_ratios=(4,1), height_ratios=(1,4),
+                           wspace=0.05, hspace=0.05)
 
-    levels_s = _levels(Hs)
-    levels_d = _levels(Hd)
-
-    # ---- figure layout (corner style) ----
-    fig = plt.figure(figsize=figsize)
-    gs = fig.add_gridspec(2, 2, width_ratios=(4,1), height_ratios=(1,4), wspace=0.05, hspace=0.05)
     ax_top   = fig.add_subplot(gs[0,0])
     ax_right = fig.add_subplot(gs[1,1])
     ax_main  = fig.add_subplot(gs[1,0])
 
-    # ---- main 2D contours ----
-    if levels_s is not None:
-        cs1 = ax_main.contour(XX, YY, Hs.T, colors='C0', levels=levels_s, alpha=0.8,lw=2)
-    if levels_d is not None:
-        cs2 = ax_main.contour(XX, YY, Hd.T, colors='C1', levels=levels_d, alpha=0.8,lw=2)
+    # ---- Main 2D contour ----
+    levels_s = np.linspace(np.nanmin(Hs[Hs>0]), np.nanmax(Hs), 7)[1:-1]  # skip outermost
+    levels_d = np.linspace(np.nanmin(Hd[Hd>0]), np.nanmax(Hd), 7)[1:-1]
 
-    proxies = [Line2D([], [], color='C0'), Line2D([], [], color='C1')]
-    ax_main.legend(proxies, labels, loc='upper left', frameon=False)
-    ax_main.set_xlabel(r"$\mathrm{log}_{10}\mathrm{(Max Flux [nJy])}$")
-    ax_main.set_ylabel(r"$\mathrm{log}_{10}\mathrm{(Max Flux Error [nJy])}$")
+    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels_s, alpha=0.8, lw=2)
+    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.8, lw=2) 
+    proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
+    ax_main.legend(proxies, labels, loc='upper left')
+    ax_main.set_xlabel(r"$\mathrm{Max Flux [nJy]}$")
+    ax_main.set_ylabel(r"$\mathrm{Max Flux Error [nJy]}$")
+    ax_main.set_xscale('log')
+    ax_main.set_yscale('log')
 
-    # ---- top histogram: log10 max flux ----
-    ax_top.hist(xs, bins=bins_flux, alpha=0.8, density=True, label=labels[0],
-        histtype='step',lw=2)
-    ax_top.hist(xd, bins=bins_flux, alpha=0.8, density=True, label=labels[1],
-        histtype='step',lw=2)
+    # ---- Top histogram ----
+    ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
+    ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
     ax_top.set_xticks([])
     ax_top.set_yticks([])
+    ax_top.set_xscale('log')
+    ax_top.set_yscale('log')
 
-    # ---- right histogram: log10 max flux err ----
-    ax_right.hist(ys, bins=bins_fluxerr, orientation='horizontal', alpha=0.8,
-                  density=True, label=labels[0],histtype='step',lw=2)
-    ax_right.hist(yd, bins=bins_fluxerr, orientation='horizontal', alpha=0.8,
-                  density=True, label=labels[1],histtype='step',lw=2)
+    # ---- Right histogram ----
+    ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
+                  density=False,histtype='step',lw=2)
+    ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
+                  density=False,histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
     ax_right.set_xticks([])
     ax_right.set_yticks([])
+    ax_right.set_xscale('log')
+    ax_right.set_yscale('log')
 
-    # subtle cleanup
-    for ax in (ax_top, ax_right):
-        ax.spines['top'].set_visible(True)
-        ax.spines['right'].set_visible(True)
+    # ---- Final layout ----
+    for ax in [ax_top, ax_right]:
+        for spine in ['top','right']:
+            ax.spines[spine].set_visible(True)
 
 
 def plot_logmaxflux_vs_logmaxfluxerr(sim, data, labels=['sim','data'],**kwargs):
