@@ -48,9 +48,16 @@ def get_sn_host_sep(host_ra, host_dec, sn_ra, sn_dec):
 # flux_e = 10^(-0.4*(maglim-zp))*gain
 # sky_adu*npix*gain =  (flux_e**2 / 25 - flux_e - (readnoise**2*nexposure*npix
 #                              + darkcurrent*npix*exptime*nexposure))
-def compute_sky(row):
+def compute_sky_ztfsn_maglimit(row):
     gain = _ztfcam_ccd_gain
     nea = GAUSS_EFF_AREA2FWHM_SQ * (row["fwhm"]) ** 2
     flux = np.power(10., -0.4*(row['maglimit'] - row['zp_abmag'])) * gain
     sky = (flux**2 / 25 - flux - _ztfcam_readout_noise**2 * nea) / nea / gain
     return sky    
+
+def compute_sky_ztfmeta_maglim(row):
+    gain = _ztfcam_ccd_gain
+    nea = GAUSS_EFF_AREA2FWHM_SQ * (row["fwhm"]) ** 2
+    flux = np.power(10., -0.4*(row['maglim'] - row['zp_abmag'])) * gain
+    sky = (flux**2 / 25 - flux - _ztfcam_readout_noise**2 * nea) / nea / gain
+    return sky   

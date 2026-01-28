@@ -4,14 +4,17 @@ import pandas as pd
 from scipy import stats
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
+from matplotlib.ticker import LogLocator
 
 def plot_snr_distr(data_list, labels=None, colors=["C0","C1"],**kwargs):
     ax = plt.subplot(1,1,1)
     if labels is None:
         labels = [f'data{i}' for i in range(0,len(data_list))]
     for i, data in enumerate(data_list):
+        # labels[i] = f"{labels[i]}(N={data['lc.snr'].count()})"
         ax.hist(data['lc.snr'], label=labels[i], color=colors[i],**kwargs)
     ax.legend()
+    return ax
 
 def convert_flux_to_njy(flux,fluxerr,zp=0.):
     zp_njy = 31.4
@@ -20,17 +23,12 @@ def convert_flux_to_njy(flux,fluxerr,zp=0.):
     fluxerr_njy = fluxerr*np.power(10., -0.4*(zp-zp_njy))         
     return flux_njy,fluxerr_njy
 
-def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., smooth_sigma=0.6):
-
-    # ---- Convert flux to nJy for data ----
-    lcdata_flux_njy, lcdata_fluxerr_njy = convert_flux_to_njy(
-        data['lc.flux'], data['lc.flux_err'], zp=zp
-    )
+def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), smooth_sigma=0.6, fraction=False):
 
     lcsim_flux     = sim['lc.flux']
     lcsim_fluxerr  = sim['lc.fluxerr']
-    lcdata_flux    = lcdata_flux_njy
-    lcdata_fluxerr = lcdata_fluxerr_njy
+    lcdata_flux    = data['lc.flux']
+    lcdata_fluxerr = data['lc.flux_err']
 
     # ---- Clean finite values ----
     m_sim  = np.isfinite(lcsim_flux) & np.isfinite(lcsim_fluxerr)
@@ -39,17 +37,28 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     xd, yd = lcdata_flux[m_data], lcdata_fluxerr[m_data]
 
     # ---- Define bins ----
-    xb = np.logspace(3.5, 6.1, 20)
-    yb = np.logspace(2.8, 4.4, 20)
+    xb = np.logspace(2.8, 8., 20)
+    yb = np.logspace(2.2, 5.7, 20)
 
     # ---- Compute 2D histograms ----
-    Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb])
-    Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb])
+    Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb], density=False)
+    Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb], density=False)
+
     print("Nsim:",np.sum(Hs))
     print("Ndata",np.sum(Hd))
+
+    Hs_s, Hd_s = Hs, Hd
     if smooth_sigma:
-        Hs = gaussian_filter(Hs, smooth_sigma)
-        Hd = gaussian_filter(Hd, smooth_sigma)
+        # floor prevents empty bins from dominating log smoothing
+        eps = 0.5   # half a count is a very standard choice
+
+        Hs_s = np.exp(gaussian_filter(np.log(Hs + eps), smooth_sigma))
+        Hd_s = np.exp(gaussian_filter(np.log(Hd + eps), smooth_sigma))
+
+    if fraction:
+        # ---- Convert smoothed counts -> density ----
+        Hs = Hs_s / Hs_s.sum()
+        Hd = Hd_s / Hd_s.sum()
 
     X, Y = np.meshgrid(0.5*(xe[:-1]+xe[1:]), 0.5*(ye[:-1]+ye[1:]))
 
@@ -63,11 +72,15 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     ax_main  = fig.add_subplot(gs[1,0])
 
     # ---- Main 2D contour ----
-    levels_s = np.linspace(np.nanmin(Hs[Hs>0]), np.nanmax(Hs), 7)[1:-1]  # skip outermost
-    levels_d = np.linspace(np.nanmin(Hd[Hd>0]), np.nanmax(Hd), 7)[1:-1]
+    # Set same levels for both contours
+    levels = np.logspace(np.log10(np.nanmin(Hs[Hs>0])),np.log10(np.nanmax(Hs)),7)[1:-1]
+    levels = np.power(10.,np.round(np.log10(levels),decimals=1))
+    levels = np.power(10., np.arange(-5.,-1.,0.5))
+    print(levels)
+    print(np.log10(levels))
 
-    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels_s, alpha=0.8, lw=2)
-    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.8, lw=2) 
+    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels, alpha=0.8, lw=2)
+    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels, alpha=0.8, lw=2) 
     proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
     ax_main.legend(proxies, labels, loc='upper left')
     ax_main.set_xlabel(r"$\mathrm{Flux [nJy]}$")
@@ -76,24 +89,46 @@ def plot_logflux_vs_logfluxerr_corner(sim, data, labels=('sim','data'), zp=30., 
     ax_main.set_yscale('log')
 
     # ---- Top histogram ----
-    ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
-    ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
+    xs_hist, bin_edges_xs = np.histogram(xs,bins=xb)
+    xd_hist, bin_edges_xd = np.histogram(xd,bins=xb)
+    if fraction:
+        xs_hist = xs_hist/np.sum(xs_hist)
+        xd_hist = xd_hist/np.sum(xd_hist)
+    bins_xs = np.sqrt(bin_edges_xs[:-1] * bin_edges_xs[1:])
+    bins_xd = np.sqrt(bin_edges_xd[:-1] * bin_edges_xd[1:])
+    ax_top.step(bins_xs,xs_hist,color="C0", lw=2, alpha=0.8)
+    ax_top.step(bins_xd,xd_hist,color="C1", lw=2, alpha=0.8)
+    # ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
+    # ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
-    ax_top.set_xticks([])
-    ax_top.set_yticks([])
     ax_top.set_xscale('log')
     ax_top.set_yscale('log')
+    ax_top.yaxis.set_major_locator(LogLocator(base=10,numticks=3))
+    ax_top.yaxis.minorticks_off()
+    ax_top.set_ylabel("Count" if not fraction else "Fraction")
+    ax_top.set_xticks([])
 
     # ---- Right histogram ----
-    ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
-                  density=False,histtype='step',lw=2)
-    ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
-                  density=False,histtype='step',lw=2)
+    ys_hist, bin_edges_ys = np.histogram(ys,bins=yb)
+    yd_hist, bin_edges_yd = np.histogram(yd,bins=yb)
+    if fraction:
+        ys_hist = ys_hist/np.sum(ys_hist)
+        yd_hist = yd_hist/np.sum(yd_hist)
+    bins_ys = np.sqrt(bin_edges_ys[:-1] * bin_edges_ys[1:])
+    bins_yd = np.sqrt(bin_edges_yd[:-1] * bin_edges_yd[1:])
+    ax_right.step(ys_hist,bins_ys,where="post",color="C0",lw=2, alpha=0.8)
+    ax_right.step(yd_hist,bins_yd,where="post",color="C1",lw=2, alpha=0.8)
+    # ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
+    #               density=False,histtype='step',lw=2)
+    # ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
+    #               density=False,histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
-    ax_right.set_xticks([])
-    ax_right.set_yticks([])
     ax_right.set_xscale('log')
     ax_right.set_yscale('log')
+    ax_right.xaxis.set_major_locator(LogLocator(base=10,numticks=3))
+    ax_right.xaxis.minorticks_off()
+    ax_right.set_xlabel("Count" if not fraction else "Fraction")
+    ax_right.set_yticks([])
 
     # ---- Final layout ----
     for ax in [ax_top, ax_right]:
@@ -193,19 +228,16 @@ def get_maxflux_and_err(flux,fluxerr):
     return {"maxflux":maxflux,"maxfluxerr":maxfluxerr}
 
 
-def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), zp=30., smooth_sigma=0.6):
+def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), smooth_sigma=0.6, fraction=False):
 
     d_max = data.reduce(get_maxflux_and_err, "lc.flux", "lc.flux_err")
-    # ---- Convert flux to nJy for data ----
-    d_maxflux_njy, d_maxfluxerr_njy = convert_flux_to_njy(
-        d_max["maxflux"], d_max["maxfluxerr"], zp=zp)
 
     s_max = sim.reduce(get_maxflux_and_err, "lc.flux", "lc.fluxerr")
 
     lcsim_flux =  s_max["maxflux"]
     lcsim_fluxerr = s_max["maxfluxerr"]
-    lcdata_flux = d_maxflux_njy
-    lcdata_fluxerr = d_maxfluxerr_njy
+    lcdata_flux = d_max["maxflux"]
+    lcdata_fluxerr = d_max["maxfluxerr"]
 
     # ---- Clean finite values ----
     m_sim  = np.isfinite(lcsim_flux) & np.isfinite(lcsim_fluxerr)
@@ -214,17 +246,27 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), zp
     xd, yd = lcdata_flux[m_data], lcdata_fluxerr[m_data]
 
     # ---- Define bins ----
-    xb = np.logspace(4.2, 6.4, 20)
-    yb = np.logspace(3.0, 4.8, 20)
+    xb = np.logspace(3.8, 7.3, 20)
+    yb = np.logspace(2.7, 5.2, 20)
 
     # ---- Compute 2D histograms ----
-    Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb])
-    Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb])
+    Hs, xe, ye = np.histogram2d(xs, ys, bins=[xb, yb],density=False)
+    Hd, _, _   = np.histogram2d(xd, yd, bins=[xb, yb],density=False)
     print("Nsim:",np.sum(Hs))
     print("Ndata",np.sum(Hd))
+
+    Hs_s, Hd_s = Hs, Hd
     if smooth_sigma:
-        Hs = gaussian_filter(Hs, smooth_sigma)
-        Hd = gaussian_filter(Hd, smooth_sigma)
+        # floor prevents empty bins from dominating log smoothing
+        eps = 0.5   # half a count is a very standard choice
+
+        Hs_s = np.exp(gaussian_filter(np.log(Hs + eps), smooth_sigma))
+        Hd_s = np.exp(gaussian_filter(np.log(Hd + eps), smooth_sigma))
+
+    if fraction:
+        # ---- Convert smoothed counts -> density ----
+        Hs = Hs_s / Hs_s.sum() 
+        Hd = Hd_s / Hd_s.sum()
 
     X, Y = np.meshgrid(0.5*(xe[:-1]+xe[1:]), 0.5*(ye[:-1]+ye[1:]))
 
@@ -238,11 +280,15 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), zp
     ax_main  = fig.add_subplot(gs[1,0])
 
     # ---- Main 2D contour ----
-    levels_s = np.linspace(np.nanmin(Hs[Hs>0]), np.nanmax(Hs), 7)[1:-1]  # skip outermost
-    levels_d = np.linspace(np.nanmin(Hd[Hd>0]), np.nanmax(Hd), 7)[1:-1]
+    # Set same levels for both contours
+    levels = np.logspace(np.log10(np.nanmin(Hs[Hs>0])),np.log10(np.nanmax(Hs)),7)[1:-1]
+    levels = np.power(10.,np.round(np.log10(levels),decimals=1))
+    levels = np.power(10., np.arange(-3.5,-1.,0.5))
+    print(levels)
+    print(np.log10(levels))
 
-    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels_s, alpha=0.8, lw=2)
-    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels_d, alpha=0.8, lw=2) 
+    cs1 = ax_main.contour(X, Y, Hs.T, colors='C0', levels=levels, alpha=0.8, lw=2)
+    cs2 = ax_main.contour(X, Y, Hd.T, colors='C1', levels=levels, alpha=0.8, lw=2) 
     proxies = [Line2D([],[],color='C0'), Line2D([],[],color='C1')]
     ax_main.legend(proxies, labels, loc='upper left')
     ax_main.set_xlabel(r"$\mathrm{Max Flux [nJy]}$")
@@ -251,24 +297,46 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), zp
     ax_main.set_yscale('log')
 
     # ---- Top histogram ----
-    ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
-    ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
+    xs_hist, bin_edges_xs = np.histogram(xs,bins=xb)
+    xd_hist, bin_edges_xd = np.histogram(xd,bins=xb)
+    if fraction:
+        xs_hist = xs_hist/np.sum(xs_hist)
+        xd_hist = xd_hist/np.sum(xd_hist)
+    bins_xs = np.sqrt(bin_edges_xs[:-1] * bin_edges_xs[1:])
+    bins_xd = np.sqrt(bin_edges_xd[:-1] * bin_edges_xd[1:])
+    dx = np.diff(xb)
+    ax_top.step(bins_xs,xs_hist,color="C0", lw=2, alpha=0.8)
+    ax_top.step(bins_xd,xd_hist,color="C1", lw=2, alpha=0.8)
+    # ax_top.hist(xs, bins=xb, color='C0', alpha=0.8, density=False,histtype='step',lw=2)
+    # ax_top.hist(xd, bins=xb, color='C1', alpha=0.8, density=False,histtype='step',lw=2)
     ax_top.set_xlim(ax_main.get_xlim())
-    ax_top.set_xticks([])
-    ax_top.set_yticks([])
+    ax_top.tick_params(which="minor", left=False, right=False)
     ax_top.set_xscale('log')
     ax_top.set_yscale('log')
+    ax_top.set_ylabel("Count" if not fraction else "Fraction")
+    ax_top.set_xticks([])
 
     # ---- Right histogram ----
-    ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
-                  density=False,histtype='step',lw=2)
-    ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
-                  density=False,histtype='step',lw=2)
+    ys_hist, bin_edges_ys = np.histogram(ys,bins=yb)
+    yd_hist, bin_edges_yd = np.histogram(yd,bins=yb)
+    if fraction:
+        ys_hist = ys_hist/np.sum(ys_hist)
+        yd_hist = yd_hist/np.sum(yd_hist)
+    bins_ys = np.sqrt(bin_edges_ys[:-1] * bin_edges_ys[1:])
+    bins_yd = np.sqrt(bin_edges_yd[:-1] * bin_edges_yd[1:])
+    dy = np.diff(yb)
+    ax_right.step(ys_hist,bins_ys,where="post",color="C0",lw=2, alpha=0.8)
+    ax_right.step(yd_hist,bins_yd,where="post",color="C1",lw=2, alpha=0.8)
+    # ax_right.hist(ys, bins=yb, orientation='horizontal', color='C0', alpha=0.8, 
+    #               density=False,histtype='step',lw=2)
+    # ax_right.hist(yd, bins=yb, orientation='horizontal', color='C1', alpha=0.8,
+    #               density=False,histtype='step',lw=2)
     ax_right.set_ylim(ax_main.get_ylim())
-    ax_right.set_xticks([])
-    ax_right.set_yticks([])
+    ax_right.tick_params(which="minor", bottom=False, top=False)
     ax_right.set_xscale('log')
     ax_right.set_yscale('log')
+    ax_right.set_xlabel("Count" if not fraction else "Fraction")
+    ax_right.set_yticks([])
 
     # ---- Final layout ----
     for ax in [ax_top, ax_right]:
