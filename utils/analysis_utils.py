@@ -17,14 +17,12 @@ def lc_quality_cuts(flux,mjd,filter,z,n_phases=7, n_before_peak=2, n_after_peak=
     pass_cut &= len(np.unique(filter[unique_idx][good_idx])) >= n_bands
     return {"pass_quality_cuts": pass_cut}
 
-def spec_selection_func(flux,m0=18.8,s=4.5):
+def spec_selection_func(flux,p0=None,m0=18.8,s=4.5):
+    if p0 is None:
+        p0 = np.random.uniform(0,1)
     m = flux2mag(np.max(flux))
     p = np.power(1. + np.exp((m - m0)*s), -1)
-    p0 = np.random.uniform(0,1)
-    if p0 < p:
-        return {"pass_spec_selection":True}
-    else:
-        return {"pass_spec_selection":False}
+    return {"pass_spec_selection": p0 < p}
 
 def get_sn_host_sep(host_ra, host_dec, sn_ra, sn_dec):
     host_ra = np.array(host_ra)
