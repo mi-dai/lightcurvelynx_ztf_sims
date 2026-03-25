@@ -246,7 +246,7 @@ def plot_logmaxflux_vs_logmaxfluxerr_corner(sim, data, labels=('sim','data'), sm
     xd, yd = lcdata_flux[m_data], lcdata_fluxerr[m_data]
 
     # ---- Define bins ----
-    xb = np.logspace(3.8, 7.3, 20)
+    xb = np.logspace(3.5, 7.6, 20)
     yb = np.logspace(2.7, 5.2, 20)
 
     # ---- Compute 2D histograms ----
