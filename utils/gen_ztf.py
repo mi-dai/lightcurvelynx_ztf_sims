@@ -64,8 +64,8 @@ def get_matched_obs_log(ztfname, sndata=None, lcdata=None, combined_obs_log=None
     #ztf ccd size 6144 × 6160 pixel * 16
     pixel_scale = 1.01 #arcsec/pixel
     center = SkyCoord(ra=0.0, dec=0.0, unit="deg", frame="icrs")
-    rect_region = RectangleSkyRegion(center=center, width=4*6144.* pixel_scale * u.arcsec, 
-                                     height=4*6160.* pixel_scale * u.arcsec, angle=0.0 * u.deg)
+    rect_region = RectangleSkyRegion(center=center, width=7.323 * u.deg, 
+                                     height=7.504 * u.deg, angle=0.0 * u.deg) # Dekany 2020 Table 3
     ztf_fp = DetectorFootprint(rect_region, pixel_scale=pixel_scale)
     
     ztf_obstable = ZTFObsTable(combined_obs_log,colmap=colmap,detector_footprint=ztf_fp)
@@ -138,8 +138,8 @@ def gen_single_ztf_sn_lc(ztfname, sky_adu_col=None,
     #ztf ccd size 6144 × 6160 pixel * 16
     pixel_scale = 1.01 #arcsec/pixel
     center = SkyCoord(ra=0.0, dec=0.0, unit="deg", frame="icrs")
-    rect_region = RectangleSkyRegion(center=center, width=4*6144.* pixel_scale * u.arcsec, 
-                                     height=4*6160.* pixel_scale * u.arcsec, angle=0.0 * u.deg)
+    rect_region = RectangleSkyRegion(center=center, width=7.323 * u.deg, 
+                                     height=7.504 * u.deg, angle=0.0 * u.deg) # Dekany 2020 Table 3
     ztf_fp = DetectorFootprint(rect_region, pixel_scale=pixel_scale)
     
     ztf_obstable = ZTFObsTable(obs_log,colmap=colmap,detector_footprint=ztf_fp)
