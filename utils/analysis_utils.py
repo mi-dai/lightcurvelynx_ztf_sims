@@ -14,7 +14,8 @@ def lc_quality_cuts(flux,mjd,filter,z,n_phases=7, n_before_peak=2, n_after_peak=
     flux_new = flux[unique_idx][good_idx]
     peak_idx_new = np.argmax(flux_new)
     pass_cut &= (peak_idx_new >= n_before_peak - 1) & (len(flux_new) - peak_idx_new >= n_after_peak - 1)
-    pass_cut &= len(np.unique(filter[unique_idx][good_idx])) >= n_bands
+    good_phases = (phases >= -10) & (phases<=40)
+    pass_cut &= len(np.unique(filter[good_phases])) >= n_bands
     return {"pass_quality_cuts": pass_cut}
 
 def spec_selection_func(flux,p0=None,m0=18.8,s=4.5):
