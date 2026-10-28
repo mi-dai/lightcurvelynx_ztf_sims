@@ -1,6 +1,6 @@
 # lightcurvelynx_ztf_sim
 
-Simulations of the Zwicky Transient Facility (ZTF) Type Ia supernova survey using [LightCurveLynx](https://github.com/lincc-frameworks/lightcurvelynx).
+Simulations of the Zwicky Transient Facility (ZTF) SN Ia DR2 sample (Rigault et al. 2025) using [LightCurveLynx](https://github.com/lincc-frameworks/lightcurvelynx).
 
 The simulations use the real ZTF observing conditions: the ZTF public metadata database is combined with the per-CCD-quadrant observing log from the ZTF SN Ia DR2 release. SN Ia parameter distributions, the DR2 selection function and the light-curve quality cuts are calibrated against the DR2 sample. The simulated light curves are fit with SALT3 (via `sncosmo`) and compared with the DR2 data. The notebooks also produce the figures for [Dai et al. (2026)](https://arxiv.org/abs/2604.07134).
 
